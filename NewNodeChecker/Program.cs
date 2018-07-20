@@ -835,17 +835,22 @@ namespace NewNodeChecker
                         {
                             string url = matches[i].Value;
 
-                            logLinks.Links = matches[i].Value;
-                            logLinks.DefinationSettingId = _definationSetting.Id;
-                            logLinks.Name = url;
+                            if (!url.ToLower().Contains("go.microsoft.com/fwlink/?linkid=") &&
+                                !url.ToLower().Contains("schemas.microsoft.com/applicationinsights/2013/settings"))
+                            {
 
-                            db.ConfigLinksDefinition.Add(logLinks);
+                                logLinks.Links = matches[i].Value;
+                                logLinks.DefinationSettingId = _definationSetting.Id;
+                                logLinks.Name = url;
 
-                            db.SaveChanges();
-                            bridge.ConfigId = configId;
-                            bridge.URLId = logLinks.Id;
-                            db.ConfigURLBridge.Add(bridge);
-                            db.SaveChanges();
+                                db.ConfigLinksDefinition.Add(logLinks);
+
+                                db.SaveChanges();
+                                bridge.ConfigId = configId;
+                                bridge.URLId = logLinks.Id;
+                                db.ConfigURLBridge.Add(bridge);
+                                db.SaveChanges();
+                            }
 
                         }
                     }
