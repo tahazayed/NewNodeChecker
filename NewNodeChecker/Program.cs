@@ -31,6 +31,9 @@ namespace NewNodeChecker
         [STAThread]
         static void Main(string[] args)
         {
+            //Create or Update Database
+            CreateOrUpdateDatabase();
+
             //Create Defination
             using (var db = new LogDbContext())
             {
@@ -993,6 +996,27 @@ namespace NewNodeChecker
                     return iisEntity.Properties["Path"].Value.ToString();
             }
             return null;
+        }
+        static void CreateOrUpdateDatabase()
+        {
+
+            try
+            {
+                var configurator = new NewNodeChecker.Migrations.Configuration();
+               
+                DbMigrator migrator = new DbMigrator(configurator);
+                migrator.Configuration.AutomaticMigrationsEnabled = true;
+                migrator.Configuration.AutomaticMigrationDataLossAllowed = true;
+
+                
+                migrator.Update();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
         }
     }
 }
