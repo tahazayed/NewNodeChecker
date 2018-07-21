@@ -15,6 +15,7 @@ using System.Data.SqlClient;
 using System.Xml.Linq;
 using System.Text.RegularExpressions;
 using System.DirectoryServices;
+using System.Text;
 using NewNodeChecker.Properties;
 
 namespace NewNodeChecker
@@ -22,12 +23,13 @@ namespace NewNodeChecker
 
     public class Program
     {
-        static readonly List<string> CodeExtensions = new List<string>() { ".dll", ".exe" };
+
+        static readonly List<string> CodeExtensions = new List<string>() { Constants.DllFileExtension, Constants.ExeFileExtension };
         static readonly string DefinationSettingName = Properties.Settings.Default.DefinationSetting.ToLower();
         static readonly string CurrentMachineName = System.Environment.MachineName;
         static DefinationSetting _definationSetting;
-
         static int _serverLogId = 0;
+
         [STAThread]
         static void Main(string[] args)
         {
@@ -57,7 +59,7 @@ namespace NewNodeChecker
                 //Create new ServerLog
                 ServerLog oServerLog = new ServerLog
                 {
-                    Ip = LocalIPAddress(),
+                    Ip = LocalIpAddress(),
                     MachineName = CurrentMachineName,
                     StartDateTime = DateTime.Now
                 };
@@ -91,16 +93,19 @@ namespace NewNodeChecker
 
             }
 
-
             Version iiSversion = GetIisVersion();
             if (iiSversion.Major == 6)
+            {
                 LogIis6WebsitesInfo(_serverLogId, CurrentMachineName);
+            }
             else if (iiSversion.Major > 6)
+            {
                 LogIis7WebsitesInfo(_serverLogId);
+            }
 
             LogSqlAccess();
 
-            LogURLsHit();
+            LogUrlsHit();
 
             using (var db = new LogDbContext())
             {
@@ -112,7 +117,6 @@ namespace NewNodeChecker
                 {
                     oServerLog.EndDateTime = DateTime.Now;
                     db.SaveChanges();
-
                 }
             }
         }
@@ -130,7 +134,7 @@ namespace NewNodeChecker
                 }
                 catch
                 {
-
+                    isExists = false;
                 }
             }
 
@@ -158,50 +162,40 @@ namespace NewNodeChecker
                 CheckProtAvailability(port.PortNo, port.Ip4Address, port.Id);
             }
 
-            using (var db = new LogDbContext())
-            {
-                var oStepLog = (from s in db.RunStepLog
-                                where s.Id == stepId
-                                select s).SingleOrDefault();
-
-                if (oStepLog != null)
-                {
-                    oStepLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
         }
         static void LogIis6WebsitesInfo(int serverLogId, string machine)
         {
-            Console.WriteLine("LogWebsitesInfo");
+            Console.WriteLine(Resources.LogWebsitesInfoIIS6);
 
             RunStepLog steplog = new RunStepLog();
             int stepId = 0;
             using (var db = new LogDbContext())
             {
                 steplog.ServerLogId = serverLogId;
-                steplog.StepName = "LogWebsitesInfo IIS6";
+                steplog.StepName = Resources.LogWebsitesInfoIIS6;
                 steplog.StartDateTime = DateTime.Now;
                 db.RunStepLog.Add(steplog);
                 db.SaveChanges();
                 stepId = steplog.Id;
             }
 
-            string path = "IIS://localhost/W3SVC";
+
             try
             {
-                using (DirectoryEntry w3Svc = new DirectoryEntry(path))
+#pragma warning disable SEC0114 // LDAP Injection
+                using (DirectoryEntry w3Svc = new DirectoryEntry(Constants.IisBaseUrl))
+#pragma warning restore SEC0114 // LDAP Injection
                 {
                     foreach (DirectoryEntry entry in w3Svc.Children)
                     {
-                        if (entry.SchemaClassName == "IIsWebServer")
+                        if (entry.SchemaClassName.Equals(Constants.IisSchemaClassName))
                         {
                             WebSiteLog sitelog = new WebSiteLog();
-                            string websiteName = (string)entry.Properties["ServerComment"].Value;
+                            string websiteName = (string)entry.Properties[Constants.IisServerCommentPropertyName].Value;
                             string physpath = GetPath(entry);
                             string name = entry.Name;
-                            string state = entry.Properties["ServerState"].Value.ToString();
+                            string state = entry.Properties[Constants.IisServerStatePropertyName].Value.ToString();
                             using (var db = new LogDbContext())
                             {
 
@@ -222,31 +216,20 @@ namespace NewNodeChecker
             {
                 Console.WriteLine(ex.Message);
             }
-            using (var db = new LogDbContext())
-            {
-                var oStepLog = (from s in db.RunStepLog
-                                where s.Id == stepId
-                                select s).SingleOrDefault();
 
-                if (oStepLog != null)
-                {
-                    oStepLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
 
         }
 
         static void LogIis7WebsitesInfo(int serverLogId)
         {
-            Console.WriteLine("LogWebSitesInfo");
+            Console.WriteLine(Resources.LogWebsitesInfoIIS7);
             RunStepLog steplog = new RunStepLog();
             int stepId = 0;
             using (var db = new LogDbContext())
             {
                 steplog.ServerLogId = serverLogId;
-                steplog.StepName = "LogWebsitesInfo IIS7";
+                steplog.StepName = Resources.LogWebsitesInfoIIS7;
                 steplog.StartDateTime = DateTime.Now;
                 db.RunStepLog.Add(steplog);
                 db.SaveChanges();
@@ -254,96 +237,67 @@ namespace NewNodeChecker
             }
             using (ServerManager oServerManager = new ServerManager())
             {
-
                 foreach (var site in oServerManager.Sites)
                 {
 
-
                     foreach (Application app in site.Applications)
                     {
-
                         foreach (var virtualRoot in app.VirtualDirectories)
                         {
-
-                            //app.ApplicationPoolName.
-                            var firstOrDefault = site.Bindings.FirstOrDefault(b => b.Protocol == "http");
-                            int webSiteLogId = 0;
                             using (var db = new LogDbContext())
                             {
-                                var oServerLog = (from s in db.ServerLogs
-                                                  where s.Id == serverLogId
-                                                  select s).SingleOrDefault();
-                                WebSiteLog oWebSiteLog = new WebSiteLog() { ServerLog = oServerLog };
-                                oWebSiteLog.SiteName = site.Name;
-                                //  site.VirtualDirectoryDefaults
+                                WebSiteLog oWebSiteLog = new WebSiteLog
+                                {
+                                    ServerLogId = _serverLogId,
+                                    SiteName = site.Name,
+                                    VirtualDirectoryName = (virtualRoot.Path == Constants.IisForwardSlash) ? app.Path : virtualRoot.Path,
+                                    AppPhysicalPath = virtualRoot.PhysicalPath
+                                };
 
-                                oWebSiteLog.VirtualDirectoryName = (virtualRoot.Path == "/") ? app.Path : virtualRoot.Path;
-
-                                oWebSiteLog.AppPhysicalPath = virtualRoot.PhysicalPath;
                                 db.WebSiteLogs.Add(oWebSiteLog);
                                 db.SaveChanges();
-                                webSiteLogId = oWebSiteLog.Id;
+                                var webSiteLogId = oWebSiteLog.Id;
                                 LogWebSitesInfo(virtualRoot.PhysicalPath, webSiteLogId);
                             }
                         }
                     }
                 }
             }
-            using (var db = new LogDbContext())
-            {
-                var oServerLog = (from s in db.RunStepLog
-                                  where s.Id == stepId
-                                  select s).SingleOrDefault();
 
-                if (oServerLog != null)
-                {
-                    oServerLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
 
         }
         static void LogWebSitesInfo(string path, int webSiteLogId)
         {
-
-            //  Version version =  GetIISVersion();
-            //Console.WriteLine("IIS Version is  " + version.ToString());
-
-            //Console.WriteLine("LogWebSitesInfo");
-            //  bool x = Directory.Exists(Path.Combine(virtualRoot.PhysicalPath, "bin"));
-            bool x = Directory.Exists(Path.Combine(path, "bin"));
+            bool isBinDirectoryExist = Directory.Exists(Path.Combine(path, Constants.IisExecutableFolder));
             try
             {
-                if (x)
+                if (isBinDirectoryExist)
                 {
-                    string[] fileEntries1 = Directory.GetFiles(path);
-                    // Directory.GetFiles(virtualRoot.PhysicalPath);
-                    string[] fileEntries = Directory.GetFiles(Path.Combine(path, "bin"));
-                    // Directory.GetFiles(Path.Combine(virtualRoot.PhysicalPath, "bin"));
 
-                    foreach (var fileentry in fileEntries)
+                    string[] binDirectoryFiles = Directory.GetFiles(Path.Combine(path, Constants.IisExecutableFolder));
+
+                    foreach (var fileEntry in binDirectoryFiles)
                     {
-                        FileInfo filInfo = new FileInfo(fileentry);
+                        FileInfo filInfo = new FileInfo(fileEntry);
 
                         if (filInfo.Exists)
                         {
-
                             using (var db = new LogDbContext())
                             {
-                                var oWebSiteLog = (from s in db.WebSiteLogs
-                                                   where s.Id == webSiteLogId
-                                                   select s).SingleOrDefault();
-                                WebSiteFileLog oWebSiteFileLog = new WebSiteFileLog() { WebSiteLog = oWebSiteLog };
-                                oWebSiteFileLog.Extension = filInfo.Extension;
-                                oWebSiteFileLog.FileName = filInfo.Name;
-                                oWebSiteFileLog.LastModificationDate = filInfo.LastWriteTime;
-                                oWebSiteFileLog.PhysicalPath = filInfo.FullName;
-                                oWebSiteFileLog.Size = filInfo.Length;
+                                WebSiteFileLog oWebSiteFileLog = new WebSiteFileLog
+                                {
+                                    WebSiteLogId = webSiteLogId,
+                                    Extension = filInfo.Extension,
+                                    FileName = filInfo.Name,
+                                    LastModificationDate = filInfo.LastWriteTime,
+                                    PhysicalPath = filInfo.FullName,
+                                    Size = filInfo.Length
+                                };
                                 if (CodeExtensions.Contains(filInfo.Extension.ToLower()))
                                 {
                                     FileVersionInfo myFileVersionInfo =
-                                        FileVersionInfo.GetVersionInfo(fileentry);
+                                        FileVersionInfo.GetVersionInfo(fileEntry);
                                     oWebSiteFileLog.BuildNo = myFileVersionInfo.FileVersion;
                                 }
 
@@ -353,16 +307,10 @@ namespace NewNodeChecker
                         }
                     }
 
-
+                    LogConfig(webSiteLogId, path);
                 }
 
 
-                //bool exists = Directory.Exists(virtualRoot.PhysicalPath);
-                bool exists = Directory.Exists(path);
-                if (exists && Properties.Settings.Default.IsModelNode)
-                {
-                    LogConfig(webSiteLogId, 0, path);
-                }
             }
             catch (Exception ex)
             {
@@ -371,32 +319,29 @@ namespace NewNodeChecker
 
         }
 
-
-
-        public static string LocalIPAddress()
+        public static string LocalIpAddress()
         {
-            IPHostEntry host;
-            string localIP = "";
-            host = Dns.GetHostEntry(Dns.GetHostName());
+            string localIp = "";
+            var host = Dns.GetHostEntry(Dns.GetHostName());
             foreach (IPAddress ip in host.AddressList)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    localIP = ip.ToString();
+                    localIp = ip.ToString();
                     break;
                 }
             }
-            return localIP;
+            return localIp;
         }
         private static void LogHostsFileContent()
         {
-            Console.WriteLine("LogHostsFileContent");
+            Console.WriteLine(Resources.LogHostsFileContent);
             RunStepLog steplog = new RunStepLog();
             int stepId = 0;
             using (var db = new LogDbContext())
             {
                 steplog.ServerLogId = _serverLogId;
-                steplog.StepName = "LogHostsFileContent";
+                steplog.StepName = Resources.LogHostsFileContent;
                 steplog.StartDateTime = DateTime.Now;
                 db.RunStepLog.Add(steplog);
                 db.SaveChanges();
@@ -411,7 +356,10 @@ namespace NewNodeChecker
                 HostsFileLog oHostsFileLog = new HostsFileLog() { ServerLog = oServerLog };
                 try
                 {
-                    string fileContent = File.ReadAllText(Path.Combine(Environment.SystemDirectory, @"drivers\etc\hosts"));
+                    string hostsFilePath = Path.Combine(Environment.SystemDirectory, Constants.HostsFilePath);
+
+                    string fileContent = File.ReadAllText(hostsFilePath);
+
                     oHostsFileLog.FileContent = fileContent;
 
                 }
@@ -424,30 +372,19 @@ namespace NewNodeChecker
                 db.HostsFileLogs.Add(oHostsFileLog);
                 db.SaveChanges();
             }
-            using (var db = new LogDbContext())
-            {
-                var oStepLog = (from s in db.RunStepLog
-                                where s.Id == stepId
-                                select s).SingleOrDefault();
-
-                if (oStepLog != null)
-                {
-                    oStepLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
         }
         static void LogInstalledApps(string uninstallKey)
         {
-            Console.WriteLine("LogInstalledApps");
-            Console.WriteLine("LogInstalledApps " + uninstallKey);
+            Console.WriteLine(Resources.LogInstalledApps);
+            Console.WriteLine(uninstallKey);
+
             RunStepLog steplog = new RunStepLog();
             int stepId = 0;
             using (var db = new LogDbContext())
             {
                 steplog.ServerLogId = _serverLogId;
-                steplog.StepName = "LogInstalledApps";
+                steplog.StepName = Resources.LogInstalledApps;
                 steplog.StartDateTime = DateTime.Now;
                 db.RunStepLog.Add(steplog);
                 db.SaveChanges();
@@ -467,36 +404,37 @@ namespace NewNodeChecker
 
                     using (RegistryKey rk = Registry.LocalMachine.OpenSubKey(uninstallKey))
                     {
-                        string strProgram, displayName, displayVersion, installDate, installSource;
                         foreach (string skName in rk.GetSubKeyNames())
                         {
                             using (RegistryKey sk = rk.OpenSubKey(skName))
                             {
                                 try
                                 {
-                                    strProgram = displayName = displayVersion = installDate = installSource = string.Empty;
-                                    if (sk.GetValue("DisplayName") != null)
+                                    string displayName = String.Empty;
+                                    string displayVersion = String.Empty;
+                                    string installDate = String.Empty;
+                                    string installSource = String.Empty;
+                                    if (sk.GetValue(Constants.DisplayNamePropertyName) != null)
                                     {
-                                        displayName = sk.GetValue("DisplayName").ToString();
+                                        displayName = sk.GetValue(Constants.DisplayNamePropertyName).ToString();
                                     }
 
-                                    if (sk.GetValue("DisplayVersion") != null)
+                                    if (sk.GetValue(Constants.DisplayVersionPropertyName) != null)
                                     {
-                                        displayVersion = sk.GetValue("DisplayVersion").ToString();
+                                        displayVersion = sk.GetValue(Constants.DisplayVersionPropertyName).ToString();
                                     }
 
-                                    if (sk.GetValue("InstallDate") != null)
+                                    if (sk.GetValue(Constants.InstallDatePropertyName) != null)
                                     {
-                                        installDate = sk.GetValue("InstallDate").ToString();
+                                        installDate = sk.GetValue(Constants.InstallDatePropertyName).ToString();
                                     }
 
-                                    if (sk.GetValue("InstallSource") != null)
+                                    if (sk.GetValue(Constants.InstallSourcePropertyName) != null)
                                     {
-                                        installSource = sk.GetValue("InstallSource").ToString();
+                                        installSource = sk.GetValue(Constants.InstallSourcePropertyName).ToString();
                                     }
 
-                                    strProgram = string.Format("\"{0}\",\"{1}\",\"{2}\",\"{3}\"", displayName,
-                                        displayVersion, installDate, installSource);
+                                    var strProgram = $"\"{displayName}\",\"{displayVersion}\",\"{installDate}\",\"{installSource}\"";
                                     if (!strProgram.Equals("\"\",\"\",\"\",\"\""))
                                     {
                                         InstalledAppLog oInstalledAppsLog = new InstalledAppLog
@@ -514,7 +452,7 @@ namespace NewNodeChecker
                                             if (
                                                 DateTime.TryParseExact(
                                                     installDate,
-                                                    @"yyyyMMdd",
+                                                    Constants.InstallDateFormate,
                                                     CultureInfo.InvariantCulture,
                                                     DateTimeStyles.AssumeUniversal,
                                                     out d))
@@ -542,30 +480,18 @@ namespace NewNodeChecker
             {
                 Console.WriteLine(ex2.Message);
             }
-            using (var db = new LogDbContext())
-            {
-                var oStepLog = (from s in db.RunStepLog
-                                where s.Id == stepId
-                                select s).SingleOrDefault();
-
-                if (oStepLog != null)
-                {
-                    oStepLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
         }
         static void LogSqlAccess()
         {
-            Console.WriteLine("LogSqlAccess");
+            Console.WriteLine(Resources.LogSqlAccess);
 
             RunStepLog steplog = new RunStepLog();
             int stepId = 0;
             using (var db = new LogDbContext())
             {
                 steplog.ServerLogId = _serverLogId;
-                steplog.StepName = "LogSqlAccess";
+                steplog.StepName = Resources.LogSqlAccess;
                 steplog.StartDateTime = DateTime.Now;
                 db.RunStepLog.Add(steplog);
                 db.SaveChanges();
@@ -573,10 +499,7 @@ namespace NewNodeChecker
             }
             using (var db = new LogDbContext())
             {
-                var oServerLog = (from s in db.ServerLogs
 
-                                  where s.Id == _serverLogId
-                                  select s).SingleOrDefault();
 
                 var lstSqlConnectionDefinations =
                     (from p in db.SqlConnectionDefinations
@@ -586,7 +509,7 @@ namespace NewNodeChecker
 
                 foreach (SqlConnectionDefination oSqlConnectionDefination in lstSqlConnectionDefinations)
                 {
-                    SqlTransResultLog oSqlTransResultLogs = new SqlTransResultLog() { SqlConnectionDefination = oSqlConnectionDefination, ServerLog = oServerLog };
+                    SqlTransResultLog oSqlTransResultLogs = new SqlTransResultLog() { SqlConnectionDefination = oSqlConnectionDefination, ServerLogId = _serverLogId };
 
 
                     string connectionString = oSqlConnectionDefination.SqlConnection;
@@ -606,7 +529,7 @@ namespace NewNodeChecker
 
 
                             oSqlTransResultLogs.RowsCount = reader.FieldCount;
-                            oSqlTransResultLogs.ServerLog = oServerLog;
+                            oSqlTransResultLogs.ServerLogId = _serverLogId;
 
                             oSqlTransResultLogs.Status = true;
                             reader.Close();
@@ -630,21 +553,9 @@ namespace NewNodeChecker
                 }
 
                 db.SaveChanges();
-
             }
-            using (var db = new LogDbContext())
-            {
-                var oStepLog = (from s in db.RunStepLog
-                                where s.Id == stepId
-                                select s).SingleOrDefault();
 
-                if (oStepLog != null)
-                {
-                    oStepLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
-
-                }
-            }
+            UpdateStepEndDateTime(stepId);
         }
         static void CheckProtAvailability(int portNumber, string ip, int portId)
         {
@@ -662,7 +573,7 @@ namespace NewNodeChecker
                     IPAddress ipa = null;
                     if (!IPAddress.TryParse(ip, out ipa))
                     {
-                        ipa = System.Net.Dns.Resolve(ip).AddressList[0];
+                        ipa = Dns.Resolve(ip).AddressList[0];
                     }
 
 
@@ -703,14 +614,15 @@ namespace NewNodeChecker
                 return lstPorts;
             }
         }
-        static void LogConfig(int siteLogId, int taskLogId, string virtualDir)
+        static void LogConfig(int webSiteLogId, string virtualDir)
         {
             ConfigFileLog configfile = new ConfigFileLog();
+
             using (var db = new LogDbContext())
             {
                 try
                 {
-                    string[] files = System.IO.Directory.GetFiles(virtualDir, "*.config");
+                    string[] files = System.IO.Directory.GetFiles(virtualDir, Constants.AllConfigFilesExtension);
 
                     foreach (string file in files)
                     {
@@ -720,13 +632,13 @@ namespace NewNodeChecker
 
 
                         configfile.ConfigFileName = Path.GetFileName(file);
-
-
-
+                        
                         configfile.LastModificationDate = System.IO.File.GetLastWriteTime(file);
-                        if (siteLogId > 0)
-                            configfile.WebSiteLogId = siteLogId;
 
+                        if (webSiteLogId > 0)
+                        {
+                            configfile.WebSiteLogId = webSiteLogId;
+                        }
 
                         configfile.Type = "Site";
                         db.ConfigFileLogs.Add(configfile);
@@ -735,8 +647,6 @@ namespace NewNodeChecker
                         LogConfigConnectionStrings(configId, xDoc);
                         LogIp(configId, xDoc, configfile.ConfigFileContent);
                         LogConfigLinks(configId, xDoc, configfile.ConfigFileContent);
-                        //LogEndPoints(ConfigID, xDoc);
-
                     }
 
                 }
@@ -768,7 +678,8 @@ namespace NewNodeChecker
                         Match macth = entityFrmRegex.Match(connString);
                         if (regMatch.Success)
                         {
-                            connString = string.Format("server={0};DataBase={1};UID={2};PWD={3};", macth.Groups[1].Value, macth.Groups[2].Value, macth.Groups[3].Value, macth.Groups[4].Value);
+                            connString =
+                                $"server={macth.Groups[1].Value};DataBase={macth.Groups[2].Value};UID={macth.Groups[3].Value};PWD={macth.Groups[4].Value};";
                         }
                     }
                     using (var db = new LogDbContext())
@@ -865,39 +776,27 @@ namespace NewNodeChecker
         }
         static void LogIp(int configId, XDocument configContent, string content)
         {
-            ConfigIPLog ConfigIP = new ConfigIPLog();
+            ConfigIPLog configIp = new ConfigIPLog();
             using (var db = new LogDbContext())
             {
+                Regex ipRx = new Regex(@"key=""([^\\""]*)""\s*value=""(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})""", RegexOptions.IgnoreCase);
 
-                //      Regex ipRX = new Regex(@"(Version=)?""(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})""", RegexOptions.IgnoreCase);
-                Regex ipRX = new Regex(@"key=""([^\\""]*)""\s*value=""(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})""", RegexOptions.IgnoreCase);
-                //    MatchCollection ipMatches = ipRX.Matches(Content);
-                MatchCollection ipMatches = ipRX.Matches(content);
+                MatchCollection ipMatches = ipRx.Matches(content);
 
                 if (ipMatches.Count > 0)
                 {
-
                     for (int i = 0; i < ipMatches.Count; i++)
                     {
-                        // if (String.IsNullOrEmpty(ipMatches[i].Groups[1].Value))
-                        // Console.WriteLine(ipMatches[i].Groups[2].Value);
-                        //{
-                        // IEnumerable<XElement> appsetting = ConfigContent.Root.Element("appSettings").Elements();
-                        //   XElement IP = XElement.Parse(ipMatches[i].Groups[1].Value);
-
-                        ConfigIP.IP = ipMatches[i].Groups[2].Value;
-                        ConfigIP.Key = ipMatches[i].Groups[1].Value;
-                        ConfigIP.ConfigFileLogId = configId;
-                        db.ConfigIPLog.Add(ConfigIP);
+                        configIp.IP = ipMatches[i].Groups[2].Value;
+                        configIp.Key = ipMatches[i].Groups[1].Value;
+                        configIp.ConfigFileLogId = configId;
+                        db.ConfigIPLog.Add(configIp);
                         db.SaveChanges();
-                        // }
                     }
-
-
                 }
             }
         }
-        static void LogURLsHit()
+        static void LogUrlsHit()
         {
             Console.WriteLine(Resources.LogURLsHit);
             RunStepLog steplog = new RunStepLog();
@@ -911,7 +810,8 @@ namespace NewNodeChecker
                 db.SaveChanges();
                 stepId = steplog.Id;
             }
-            List<ConfigLinksDefinition> lstConfigLinksDefinition = new List<ConfigLinksDefinition>();
+
+            List<ConfigLinksDefinition> lstConfigLinksDefinition;
 
             using (var db = new LogDbContext())
             {
@@ -919,8 +819,6 @@ namespace NewNodeChecker
                                             where p.DefinationSettingId == _definationSetting.Id
                                             select p).ToList();
             }
-
-
 
             foreach (ConfigLinksDefinition link in lstConfigLinksDefinition)
             {
@@ -959,11 +857,14 @@ namespace NewNodeChecker
 
                 }
 
-
-
-
             }
 
+            UpdateStepEndDateTime(stepId);
+
+        }
+
+        private static void UpdateStepEndDateTime(int stepId)
+        {
             using (var db = new LogDbContext())
             {
                 var oStepLog = (from s in db.RunStepLog
@@ -974,10 +875,8 @@ namespace NewNodeChecker
                 {
                     oStepLog.EndDateTime = DateTime.Now;
                     db.SaveChanges();
-
                 }
             }
-
         }
 
         public static Version GetIisVersion()
@@ -1008,12 +907,12 @@ namespace NewNodeChecker
             try
             {
                 var configurator = new NewNodeChecker.Migrations.Configuration();
-               
+
                 DbMigrator migrator = new DbMigrator(configurator);
                 migrator.Configuration.AutomaticMigrationsEnabled = true;
                 migrator.Configuration.AutomaticMigrationDataLossAllowed = true;
 
-                
+
                 migrator.Update();
             }
             catch (Exception)

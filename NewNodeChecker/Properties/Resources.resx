@@ -117,10 +117,28 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="LogHostsFileContent" xml:space="preserve">
+    <value>LogHostsFileContent</value>
+  </data>
+  <data name="LogInstalledApps" xml:space="preserve">
+    <value>LogInstalledApps</value>
+  </data>
   <data name="LogPortsAvailability" xml:space="preserve">
     <value>LogPortsAvailability</value>
   </data>
+  <data name="LogSqlAccess" xml:space="preserve">
+    <value>LogSqlAccess</value>
+  </data>
   <data name="LogURLsHit" xml:space="preserve">
     <value>LogURLsHit</value>
+  </data>
+  <data name="LogWebsitesInfo" xml:space="preserve">
+    <value>LogWebsitesInfo</value>
+  </data>
+  <data name="LogWebsitesInfoIIS6" xml:space="preserve">
+    <value>LogWebsitesInfo IIS6</value>
+  </data>
+  <data name="LogWebsitesInfoIIS7" xml:space="preserve">
+    <value>LogWebsitesInfo IIS7</value>
   </data>
 </root>

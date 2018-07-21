@@ -61,6 +61,24 @@ namespace NewNodeChecker.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to LogHostsFileContent.
+        /// </summary>
+        internal static string LogHostsFileContent {
+            get {
+                return ResourceManager.GetString("LogHostsFileContent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to LogInstalledApps.
+        /// </summary>
+        internal static string LogInstalledApps {
+            get {
+                return ResourceManager.GetString("LogInstalledApps", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to LogPortsAvailability.
         /// </summary>
         internal static string LogPortsAvailability {
@@ -70,11 +88,47 @@ namespace NewNodeChecker.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to LogSqlAccess.
+        /// </summary>
+        internal static string LogSqlAccess {
+            get {
+                return ResourceManager.GetString("LogSqlAccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to LogURLsHit.
         /// </summary>
         internal static string LogURLsHit {
             get {
                 return ResourceManager.GetString("LogURLsHit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to LogWebsitesInfo.
+        /// </summary>
+        internal static string LogWebsitesInfo {
+            get {
+                return ResourceManager.GetString("LogWebsitesInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to LogWebsitesInfo IIS6.
+        /// </summary>
+        internal static string LogWebsitesInfoIIS6 {
+            get {
+                return ResourceManager.GetString("LogWebsitesInfoIIS6", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to LogWebsitesInfo IIS7.
+        /// </summary>
+        internal static string LogWebsitesInfoIIS7 {
+            get {
+                return ResourceManager.GetString("LogWebsitesInfoIIS7", resourceCulture);
             }
         }
     }
