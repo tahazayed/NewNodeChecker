@@ -827,14 +827,14 @@ namespace NewNodeChecker
             }
         }
 
-        private static void CreateStepLog(string StepName, ref int stepId)
+        private static void CreateStepLog(string stepName, ref int stepId)
         {
             using (var db = new LogDbContext())
             {
                 RunStepLog steplog = new RunStepLog
                 {
                     ServerLogId = _serverLogId,
-                    StepName = StepName,
+                    StepName = stepName,
                     StartDateTime = DateTime.Now
                 };
 

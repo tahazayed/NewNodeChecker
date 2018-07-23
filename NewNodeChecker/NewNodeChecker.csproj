@@ -148,6 +148,7 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="Database\LogDbContext.cs" />
+    <Compile Include="Database\LogDbContext.Views.cs" />
     <Compile Include="Migrations\201807191949535_initial.cs" />
     <Compile Include="Migrations\201807191949535_initial.Designer.cs">
       <DependentUpon>201807191949535_initial.cs</DependentUpon>
