@@ -16,6 +16,7 @@ using System.Xml.Linq;
 using System.Text.RegularExpressions;
 using System.DirectoryServices;
 using System.Text;
+using CommandLine;
 using NewNodeChecker.Properties;
 
 namespace NewNodeChecker
@@ -25,21 +26,35 @@ namespace NewNodeChecker
     {
 
         static readonly List<string> CodeExtensions = new List<string>() { Constants.DllFileExtension, Constants.ExeFileExtension };
-        static readonly string DefinationSettingName = Properties.Settings.Default.DefinationSetting.ToLower();
+        static string _definationSettingName;
         static readonly string CurrentMachineName = System.Environment.MachineName;
         static DefinationSetting _definationSetting;
         static int _serverLogId = 0;
+        static int _timeOut;
 
         [STAThread]
         static void Main(string[] args)
         {
+            Options ops = new Options();
+            CommandLine.Parser.Default.ParseArguments<Options>(args)
+                .WithParsed(RunOptionsAndReturnExitCode)
+                .WithNotParsed(HandleParseError);
+            
+        }
+
+
+        private static void RunOptionsAndReturnExitCode(Options opts)
+        {
+            _definationSettingName = !string.IsNullOrEmpty(opts.DefinationSetting) ? opts.DefinationSetting.ToLower() : Properties.Settings.Default.DefinationSetting.ToLower();
+            _timeOut = opts.TimeOut > 0 ? opts.TimeOut : Properties.Settings.Default.TimeOut;
+
             //Create or Update Database
             CreateOrUpdateDatabase();
 
             //Create Defination
             using (var db = new LogDbContext())
             {
-                _definationSetting = new DefinationSetting() { Name = DefinationSettingName };
+                _definationSetting = new DefinationSetting() { Name = _definationSettingName };
                 db.DefinationSettings.AddOrUpdate(x => x.Name, _definationSetting);
                 db.SaveChanges();
             }
@@ -120,7 +135,10 @@ namespace NewNodeChecker
                 }
             }
         }
+        private static void HandleParseError(IEnumerable<Error> errs)
+        {
 
+        }
         private static bool CheckIfPathExistsInRegistry(string path)
         {
             bool isExists = Directory.Exists(path);
@@ -632,7 +650,7 @@ namespace NewNodeChecker
 
 
                         configfile.ConfigFileName = Path.GetFileName(file);
-                        
+
                         configfile.LastModificationDate = System.IO.File.GetLastWriteTime(file);
 
                         if (webSiteLogId > 0)
@@ -834,7 +852,7 @@ namespace NewNodeChecker
                         request.KeepAlive = false;
                         request.ProtocolVersion = HttpVersion.Version10;
                         //request.Method = "GET";
-                        request.Timeout = Properties.Settings.Default.TimeOut;
+                        request.Timeout = _timeOut;
                         responseLog.ConfigLinksDefinitionId = link.Id;
                         responseLog.ServerLogId = _serverLogId;
                         HttpWebResponse response = (HttpWebResponse)request.GetResponse();
