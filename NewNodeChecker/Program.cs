@@ -39,7 +39,7 @@ namespace NewNodeChecker
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(RunOptionsAndReturnExitCode)
                 .WithNotParsed(HandleParseError);
-            
+
         }
 
 
@@ -161,23 +161,15 @@ namespace NewNodeChecker
         private static void LogPortsAvailability()
         {
             Console.WriteLine(Resources.LogPortsAvailability);
-            RunStepLog steplog = new RunStepLog();
+            
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = _serverLogId;
-                steplog.StepName = Resources.LogPortsAvailability;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
 
-
+            CreateStepLog(Resources.LogPortsAvailability, ref stepId);
+            
             List<PortInfoDefination> portInfo = GetPortsInfo();
             foreach (PortInfoDefination port in portInfo)
             {
-                CheckProtAvailability(port.PortNo, port.Ip4Address, port.Id);
+                CheckPortAvailability(port.PortNo, port.Ip4Address, port.Id);
             }
 
             UpdateStepEndDateTime(stepId);
@@ -186,19 +178,10 @@ namespace NewNodeChecker
         {
             Console.WriteLine(Resources.LogWebsitesInfoIIS6);
 
-            RunStepLog steplog = new RunStepLog();
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = serverLogId;
-                steplog.StepName = Resources.LogWebsitesInfoIIS6;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
 
-
+            CreateStepLog(Resources.LogWebsitesInfoIIS6, ref stepId);
+           
             try
             {
 #pragma warning disable SEC0114 // LDAP Injection
@@ -242,17 +225,11 @@ namespace NewNodeChecker
         static void LogIis7WebsitesInfo(int serverLogId)
         {
             Console.WriteLine(Resources.LogWebsitesInfoIIS7);
-            RunStepLog steplog = new RunStepLog();
+           
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = serverLogId;
-                steplog.StepName = Resources.LogWebsitesInfoIIS7;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
+
+            CreateStepLog(Resources.LogWebsitesInfoIIS7, ref stepId);
+
             using (ServerManager oServerManager = new ServerManager())
             {
                 foreach (var site in oServerManager.Sites)
@@ -354,17 +331,11 @@ namespace NewNodeChecker
         private static void LogHostsFileContent()
         {
             Console.WriteLine(Resources.LogHostsFileContent);
-            RunStepLog steplog = new RunStepLog();
+
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = _serverLogId;
-                steplog.StepName = Resources.LogHostsFileContent;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
+
+            CreateStepLog(Resources.LogHostsFileContent, ref stepId);
+           
             using (var db = new LogDbContext())
             {
                 var oServerLog = (from s in db.ServerLogs
@@ -397,29 +368,15 @@ namespace NewNodeChecker
             Console.WriteLine(Resources.LogInstalledApps);
             Console.WriteLine(uninstallKey);
 
-            RunStepLog steplog = new RunStepLog();
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = _serverLogId;
-                steplog.StepName = Resources.LogInstalledApps;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
 
-            //   Console.WriteLine(uninstallKey);
+            CreateStepLog(Resources.LogInstalledApps, ref stepId);
+            
             try
             {
 
-
                 using (var db = new LogDbContext())
                 {
-                    var oServerLog = (from s in db.ServerLogs
-                                      where s.Id == _serverLogId
-                                      select s).SingleOrDefault();
-
                     using (RegistryKey rk = Registry.LocalMachine.OpenSubKey(uninstallKey))
                     {
                         foreach (string skName in rk.GetSubKeyNames())
@@ -452,12 +409,13 @@ namespace NewNodeChecker
                                         installSource = sk.GetValue(Constants.InstallSourcePropertyName).ToString();
                                     }
 
-                                    var strProgram = $"\"{displayName}\",\"{displayVersion}\",\"{installDate}\",\"{installSource}\"";
-                                    if (!strProgram.Equals("\"\",\"\",\"\",\"\""))
+                                    var strProgram = string.Format(Constants.ProgramPathFormat1St, displayName,
+                                        displayVersion, installDate, installSource);
+                                    if (!strProgram.Equals(Constants.ProgramPathFormat2Nd))
                                     {
                                         InstalledAppLog oInstalledAppsLog = new InstalledAppLog
                                         {
-                                            ServerLog = oServerLog,
+                                            ServerLogId = _serverLogId,
                                             DisplayName = displayName
                                         };
 
@@ -504,21 +462,12 @@ namespace NewNodeChecker
         {
             Console.WriteLine(Resources.LogSqlAccess);
 
-            RunStepLog steplog = new RunStepLog();
             int stepId = 0;
+
+            CreateStepLog(Resources.LogSqlAccess, ref stepId);
+  
             using (var db = new LogDbContext())
             {
-                steplog.ServerLogId = _serverLogId;
-                steplog.StepName = Resources.LogSqlAccess;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
-            using (var db = new LogDbContext())
-            {
-
-
                 var lstSqlConnectionDefinations =
                     (from p in db.SqlConnectionDefinations
                      where p.IsEnabled && p.DefinationSettingId.Equals(_definationSetting.Id)
@@ -575,19 +524,13 @@ namespace NewNodeChecker
 
             UpdateStepEndDateTime(stepId);
         }
-        static void CheckProtAvailability(int portNumber, string ip, int portId)
+        static void CheckPortAvailability(int portNumber, string ip, int portId)
         {
-            PortResultLog oPortResultLog = null; ;
+            PortResultLog oPortResultLog = new PortResultLog() { ServerLogId = _serverLogId, PortId = portId };
             using (var db = new LogDbContext())
             {
                 try
                 {
-                    var oServerLog = (from s in db.ServerLogs
-                                      where s.Id == _serverLogId
-                                      select s).SingleOrDefault();
-
-                    oPortResultLog = new PortResultLog() { ServerLog = oServerLog, PortId = portId };
-
                     IPAddress ipa = null;
                     if (!IPAddress.TryParse(ip, out ipa))
                     {
@@ -612,10 +555,10 @@ namespace NewNodeChecker
                     oPortResultLog.Exception = ex.StackTrace;
                     oPortResultLog.IsOpened = false;
                 }
+
                 db.PortResultLogs.Add(oPortResultLog);
+
                 db.SaveChanges();
-
-
             }
         }
         static List<PortInfoDefination> GetPortsInfo()
@@ -658,7 +601,7 @@ namespace NewNodeChecker
                             configfile.WebSiteLogId = webSiteLogId;
                         }
 
-                        configfile.Type = "Site";
+                        configfile.Type = Resources.LogSite;
                         db.ConfigFileLogs.Add(configfile);
                         db.SaveChanges();
                         var configId = configfile.Id;
@@ -681,23 +624,23 @@ namespace NewNodeChecker
         }
         static void LogConfigConnectionStrings(int configId, XDocument configContent)
         {
-            //  Console.WriteLine("ConnectionStrings");
             try
             {
-                Regex ipRegex = new Regex(@"connectionString=""([^""]*)""", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-                MatchCollection regMatchCollection = ipRegex.Matches(configContent.ToString());
+                Regex ConnectionString1StRegex = new Regex(Constants.RegexConnectionString1St, RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                MatchCollection regMatchCollection = ConnectionString1StRegex.Matches(configContent.ToString());
                 foreach (Match regMatch in regMatchCollection)
                 {
                     string connString = regMatch.Groups[1].Value;
 
-                    if (connString.Contains("Entity"))
+                    if (connString.Contains(Constants.Entity))
                     {
-                        Regex entityFrmRegex = new Regex("data source=([^;]*);initial catalog=([^;]*);user id=([^;]*);password=([^;]*);");
-                        Match macth = entityFrmRegex.Match(connString);
+                        Regex RegexConnectionString2NdRegex = new Regex(Constants.RegexConnectionString2Nd);
+                        Match macth = RegexConnectionString2NdRegex.Match(connString);
                         if (regMatch.Success)
                         {
                             connString =
-                                $"server={macth.Groups[1].Value};DataBase={macth.Groups[2].Value};UID={macth.Groups[3].Value};PWD={macth.Groups[4].Value};";
+                                string.Format(Constants.ConnectionStringFormat, macth.Groups[1].Value,
+                                    macth.Groups[2].Value, macth.Groups[3].Value, macth.Groups[4].Value);
                         }
                     }
                     using (var db = new LogDbContext())
@@ -718,8 +661,8 @@ namespace NewNodeChecker
                         if (connId == 0)
                         {
                             sqlConDef.SqlConnection = connString;
-                            sqlConDef.SqlStatment = "select getdate()";
-                            sqlConDef.Name = "Config connection String";
+                            sqlConDef.SqlStatment = Constants.SqlSimpleStatement;
+                            sqlConDef.Name = Resources.LogConfigConnectionString;
 
                             sqlConDef.IsEnabled = true;
 
@@ -729,13 +672,11 @@ namespace NewNodeChecker
                             db.SaveChanges();
 
                             conficonnections.ConfigFileLogId = configId;
-                            conficonnections.ConnectionSting = connString;// element.ToString();
+                            conficonnections.ConnectionSting = connString;
                             conficonnections.SqlConnectionDefinationId = sqlConDef.Id;
                             db.ConfigConnectionStringLog.Add(conficonnections);
                             db.SaveChanges();
                         }
-
-
                     }
                 }
             }
@@ -752,7 +693,7 @@ namespace NewNodeChecker
             {
                 ConfigLinksDefinition logLinks = new ConfigLinksDefinition();
                 ConfigURLBridge bridge = new ConfigURLBridge();
-                Regex urlRx = new Regex(@"(http|ftp|https)://([\w+?\.\w+])+([a-zA-Z0-9\~\!\@\#\$\%\^\&\*\(\)_\-\=\+\\\/\?\.\:\;\'\,]*)?", RegexOptions.IgnoreCase);
+                Regex urlRx = new Regex(Constants.RegexUrl, RegexOptions.IgnoreCase);
 
                 MatchCollection matches = urlRx.Matches(content);
 
@@ -797,7 +738,7 @@ namespace NewNodeChecker
             ConfigIPLog configIp = new ConfigIPLog();
             using (var db = new LogDbContext())
             {
-                Regex ipRx = new Regex(@"key=""([^\\""]*)""\s*value=""(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})""", RegexOptions.IgnoreCase);
+                Regex ipRx = new Regex(Constants.RegexIp, RegexOptions.IgnoreCase);
 
                 MatchCollection ipMatches = ipRx.Matches(content);
 
@@ -817,17 +758,10 @@ namespace NewNodeChecker
         static void LogUrlsHit()
         {
             Console.WriteLine(Resources.LogURLsHit);
-            RunStepLog steplog = new RunStepLog();
+   
             int stepId = 0;
-            using (var db = new LogDbContext())
-            {
-                steplog.ServerLogId = _serverLogId;
-                steplog.StepName = Resources.LogURLsHit;
-                steplog.StartDateTime = DateTime.Now;
-                db.RunStepLog.Add(steplog);
-                db.SaveChanges();
-                stepId = steplog.Id;
-            }
+
+            CreateStepLog(Resources.LogURLsHit, ref stepId);
 
             List<ConfigLinksDefinition> lstConfigLinksDefinition;
 
@@ -851,14 +785,13 @@ namespace NewNodeChecker
                         request.Method = WebRequestMethods.Http.Head;
                         request.KeepAlive = false;
                         request.ProtocolVersion = HttpVersion.Version10;
-                        //request.Method = "GET";
+
                         request.Timeout = _timeOut;
                         responseLog.ConfigLinksDefinitionId = link.Id;
                         responseLog.ServerLogId = _serverLogId;
                         HttpWebResponse response = (HttpWebResponse)request.GetResponse();
 
-
-                        responseLog.Status = response.StatusCode == HttpStatusCode.OK ? "Succeed" : "Failed";
+                        responseLog.Status = response.StatusCode == HttpStatusCode.OK ? Constants.Succeed : Constants.Failed;
 
                         db.ConfigLinksLog.Add(responseLog);
                         db.SaveChanges();
@@ -867,18 +800,15 @@ namespace NewNodeChecker
                     {
                         responseLog.ConfigLinksDefinitionId = link.Id;
                         responseLog.Exception = ex.Message;
-                        responseLog.Status = "Failed";
+                        responseLog.Status = Constants.Failed;
                         db.ConfigLinksLog.Add(responseLog);
                         responseLog.ServerLogId = _serverLogId;
                         db.SaveChanges();
                     }
-
                 }
-
             }
 
             UpdateStepEndDateTime(stepId);
-
         }
 
         private static void UpdateStepEndDateTime(int stepId)
@@ -897,14 +827,30 @@ namespace NewNodeChecker
             }
         }
 
+        private static void CreateStepLog(string StepName, ref int stepId)
+        {
+            using (var db = new LogDbContext())
+            {
+                RunStepLog steplog = new RunStepLog
+                {
+                    ServerLogId = _serverLogId,
+                    StepName = StepName,
+                    StartDateTime = DateTime.Now
+                };
+
+                db.RunStepLog.Add(steplog);
+                db.SaveChanges();
+                stepId = steplog.Id;
+            }
+        }
         public static Version GetIisVersion()
         {
             using (RegistryKey key =
-            Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\InetStp", false))
+            Registry.LocalMachine.OpenSubKey(Constants.IisRegKey, false))
             {
                 if (key == null) return new Version(0, 0);
-                int majorVersion = (int)key.GetValue("MajorVersion", -1);
-                int minorVersion = (int)key.GetValue("MinorVersion", -1);
+                int majorVersion = (int)key.GetValue(Constants.IisMajorVersionPropertyName, -1);
+                int minorVersion = (int)key.GetValue(Constants.IisMinorVersionPropertyName, -1);
                 if (majorVersion == -1 || minorVersion == -1) return new Version(0, 0);
                 return new Version(majorVersion, minorVersion);
             }
@@ -914,8 +860,8 @@ namespace NewNodeChecker
         {
             foreach (DirectoryEntry iisEntity in iisWebServer.Children)
             {
-                if (iisEntity.SchemaClassName == "IIsWebVirtualDir")
-                    return iisEntity.Properties["Path"].Value.ToString();
+                if (iisEntity.SchemaClassName == Constants.IisWebVirtualDirSchemaClassName)
+                    return iisEntity.Properties[Constants.IisWebVirtualDirPathPropertyName].Value.ToString();
             }
             return null;
         }

@@ -61,6 +61,15 @@ namespace NewNodeChecker.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Config connection String.
+        /// </summary>
+        internal static string LogConfigConnectionString {
+            get {
+                return ResourceManager.GetString("LogConfigConnectionString", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to LogHostsFileContent.
         /// </summary>
         internal static string LogHostsFileContent {
@@ -84,6 +93,15 @@ namespace NewNodeChecker.Properties {
         internal static string LogPortsAvailability {
             get {
                 return ResourceManager.GetString("LogPortsAvailability", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Site.
+        /// </summary>
+        internal static string LogSite {
+            get {
+                return ResourceManager.GetString("LogSite", resourceCulture);
             }
         }
         
