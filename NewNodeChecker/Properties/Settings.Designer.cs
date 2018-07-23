@@ -22,23 +22,5 @@ namespace NewNodeChecker.Properties {
                 return defaultInstance;
             }
         }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("10000")]
-        public int TimeOut {
-            get {
-                return ((int)(this["TimeOut"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("egy-tamen-nb")]
-        public string DefinationSetting {
-            get {
-                return ((string)(this["DefinationSetting"]));
-            }
-        }
     }
 }

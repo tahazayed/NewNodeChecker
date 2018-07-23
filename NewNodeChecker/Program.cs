@@ -45,8 +45,8 @@ namespace NewNodeChecker
 
         private static void RunOptionsAndReturnExitCode(Options opts)
         {
-            _definationSettingName = !string.IsNullOrEmpty(opts.DefinationSetting) ? opts.DefinationSetting.ToLower() : Properties.Settings.Default.DefinationSetting.ToLower();
-            _timeOut = opts.TimeOut > 0 ? opts.TimeOut : Properties.Settings.Default.TimeOut;
+            _definationSettingName = opts.DefinationSetting.ToLower();
+            _timeOut = opts.TimeOut;
 
             //Create or Update Database
             CreateOrUpdateDatabase();
