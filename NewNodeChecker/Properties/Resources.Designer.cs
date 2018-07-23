@@ -61,6 +61,15 @@ namespace NewNodeChecker.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The compare feature as not been impelemented yet.
+        /// </summary>
+        internal static string CompareNotImpelementedYet {
+            get {
+                return ResourceManager.GetString("CompareNotImpelementedYet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Config connection String.
         /// </summary>
         internal static string LogConfigConnectionString {
@@ -147,6 +156,15 @@ namespace NewNodeChecker.Properties {
         internal static string LogWebsitesInfoIIS7 {
             get {
                 return ResourceManager.GetString("LogWebsitesInfoIIS7", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ServerOne or ServerTwo not specified!.
+        /// </summary>
+        internal static string ServerOneOrServerTwoNotSpecified {
+            get {
+                return ResourceManager.GetString("ServerOneOrServerTwoNotSpecified", resourceCulture);
             }
         }
     }

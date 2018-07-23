@@ -31,15 +31,17 @@ namespace NewNodeChecker
         static DefinationSetting _definationSetting;
         static int _serverLogId = 0;
         static int _timeOut;
+        static string _mode;
+        static int _returnValue = 0;
 
         [STAThread]
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             Options ops = new Options();
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(RunOptionsAndReturnExitCode)
                 .WithNotParsed(HandleParseError);
-
+            return _returnValue;
         }
 
 
@@ -47,6 +49,7 @@ namespace NewNodeChecker
         {
             _definationSettingName = opts.DefinationSetting.ToLower();
             _timeOut = opts.TimeOut;
+            _mode = opts.Mode.ToString().ToLower();
 
             //Create or Update Database
             CreateOrUpdateDatabase();
@@ -59,80 +62,99 @@ namespace NewNodeChecker
                 db.SaveChanges();
             }
 
-            using (var db = new LogDbContext())
+            if (_mode == "i") //mode is inspect server
             {
-                //Delete Old ServerLogs
-                List<ServerLog> lstServerLogs = (from s in db.ServerLogs
-                                                 where s.MachineName == CurrentMachineName
-                                                 select s).ToList();
-                if (lstServerLogs.Count > 0)
+                using (var db = new LogDbContext())
                 {
-                    db.ServerLogs.RemoveRange(lstServerLogs);
+                    //Delete Old ServerLogs
+                    List<ServerLog> lstServerLogs = (from s in db.ServerLogs
+                        where s.MachineName == CurrentMachineName
+                        select s).ToList();
+                    if (lstServerLogs.Count > 0)
+                    {
+                        db.ServerLogs.RemoveRange(lstServerLogs);
+                        db.SaveChanges();
+                    }
+
+                    //Create new ServerLog
+                    ServerLog oServerLog = new ServerLog
+                    {
+                        Ip = LocalIpAddress(),
+                        MachineName = CurrentMachineName,
+                        StartDateTime = DateTime.Now
+                    };
+
+                    db.ServerLogs.Add(oServerLog);
                     db.SaveChanges();
+                    _serverLogId = oServerLog.Id;
+
                 }
 
-                //Create new ServerLog
-                ServerLog oServerLog = new ServerLog
+                LogPortsAvailability();
+
+                //Log file content for this file windows\system32\drivers\etc\hosts
+                LogHostsFileContent();
+
+                //Log installed apps 32 bit
+                LogInstalledApps(Constants.InstalledApps32BitRegKey);
+
+                var is64Bit = CheckIfPathExistsInRegistry(Constants.InstalledApps64BitRegKey);
+                var isWindowsUpdate = CheckIfPathExistsInRegistry(Constants.WindowsUpdatesRegKey);
+
+                //Log installed apps 64 bit
+                if (is64Bit)
                 {
-                    Ip = LocalIpAddress(),
-                    MachineName = CurrentMachineName,
-                    StartDateTime = DateTime.Now
-                };
-
-                db.ServerLogs.Add(oServerLog);
-                db.SaveChanges();
-                _serverLogId = oServerLog.Id;
-
-            }
-
-            LogPortsAvailability();
-
-            //Log file content for this file windows\system32\drivers\etc\hosts
-            LogHostsFileContent();
-
-            //Log installed apps 32 bit
-            LogInstalledApps(Constants.InstalledApps32BitRegKey);
-
-            var is64Bit = CheckIfPathExistsInRegistry(Constants.InstalledApps64BitRegKey);
-            var isWindowsUpdate = CheckIfPathExistsInRegistry(Constants.WindowsUpdatesRegKey);
-
-            //Log installed apps 64 bit
-            if (is64Bit)
-            {
-                LogInstalledApps(Constants.InstalledApps64BitRegKey);
-            }
-            //Log Windows updates
-            if (isWindowsUpdate)
-            {
-                LogInstalledApps(Constants.WindowsUpdatesRegKey);
-
-            }
-
-            Version iiSversion = GetIisVersion();
-            if (iiSversion.Major == 6)
-            {
-                LogIis6WebsitesInfo(_serverLogId, CurrentMachineName);
-            }
-            else if (iiSversion.Major > 6)
-            {
-                LogIis7WebsitesInfo(_serverLogId);
-            }
-
-            LogSqlAccess();
-
-            LogUrlsHit();
-
-            using (var db = new LogDbContext())
-            {
-                var oServerLog = (from s in db.ServerLogs
-                                  where s.Id == _serverLogId
-                                  select s).SingleOrDefault();
-
-                if (oServerLog != null)
-                {
-                    oServerLog.EndDateTime = DateTime.Now;
-                    db.SaveChanges();
+                    LogInstalledApps(Constants.InstalledApps64BitRegKey);
                 }
+
+                //Log Windows updates
+                if (isWindowsUpdate)
+                {
+                    LogInstalledApps(Constants.WindowsUpdatesRegKey);
+
+                }
+
+                Version iiSversion = GetIisVersion();
+                if (iiSversion.Major == 6)
+                {
+                    LogIis6WebsitesInfo(_serverLogId, CurrentMachineName);
+                }
+                else if (iiSversion.Major > 6)
+                {
+                    LogIis7WebsitesInfo(_serverLogId);
+                }
+
+                LogSqlAccess();
+
+                LogUrlsHit();
+
+                using (var db = new LogDbContext())
+                {
+                    var oServerLog = (from s in db.ServerLogs
+                        where s.Id == _serverLogId
+                        select s).SingleOrDefault();
+
+                    if (oServerLog != null)
+                    {
+                        oServerLog.EndDateTime = DateTime.Now;
+                        db.SaveChanges();
+                    }
+                }
+
+                _returnValue = 0;
+            }
+            else if (_mode == "c") //mode is compare servers
+            {
+                string serverOne = opts.ServerOne;
+                string serverTwo = opts.ServerTwo;
+
+                if (string.IsNullOrEmpty(serverOne) || string.IsNullOrEmpty(serverTwo))
+                {
+                    Console.WriteLine(Resources.ServerOneOrServerTwoNotSpecified);
+                    _returnValue = -2;
+                    return;
+                }
+                Console.WriteLine(Resources.CompareNotImpelementedYet);
             }
         }
         private static void HandleParseError(IEnumerable<Error> errs)

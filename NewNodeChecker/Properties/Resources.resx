@@ -117,6 +117,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="CompareNotImpelementedYet" xml:space="preserve">
+    <value>The compare feature as not been impelemented yet</value>
+  </data>
   <data name="LogConfigConnectionString" xml:space="preserve">
     <value>Config connection String</value>
   </data>
@@ -146,5 +149,8 @@
   </data>
   <data name="LogWebsitesInfoIIS7" xml:space="preserve">
     <value>LogWebsitesInfo IIS7</value>
+  </data>
+  <data name="ServerOneOrServerTwoNotSpecified" xml:space="preserve">
+    <value>ServerOne or ServerTwo not specified!</value>
   </data>
 </root>
