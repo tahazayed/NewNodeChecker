@@ -3,7 +3,7 @@ namespace NewNodeChecker.Migrations
     using System;
     using System.Data.Entity.Migrations;
     
-    public partial class initial : DbMigration
+    public partial class Initial : DbMigration
     {
         public override void Up()
         {
@@ -95,8 +95,8 @@ namespace NewNodeChecker.Migrations
                 c => new
                     {
                         Id = c.Int(nullable: false, identity: true),
-                        DisplayName = c.String(),
-                        DisplayVersion = c.String(),
+                        DisplayName = c.String(maxLength: 500),
+                        DisplayVersion = c.String(maxLength: 100),
                         InstallDate = c.DateTime(),
                         InstallSource = c.String(),
                         ServerLogId = c.Int(nullable: false),
@@ -106,6 +106,8 @@ namespace NewNodeChecker.Migrations
                     })
                 .PrimaryKey(t => t.Id)
                 .ForeignKey("dbo.ServerLogs", t => t.ServerLogId, cascadeDelete: true)
+                .Index(t => t.DisplayName)
+                .Index(t => t.DisplayVersion)
                 .Index(t => t.ServerLogId);
             
             CreateTable(
@@ -317,6 +319,8 @@ namespace NewNodeChecker.Migrations
             DropIndex("dbo.SqlTransResultLogs", new[] { "ServerLogId" });
             DropIndex("dbo.SqlTransResultLogs", new[] { "SqlConnectionDefinationId" });
             DropIndex("dbo.InstalledAppLogs", new[] { "ServerLogId" });
+            DropIndex("dbo.InstalledAppLogs", new[] { "DisplayVersion" });
+            DropIndex("dbo.InstalledAppLogs", new[] { "DisplayName" });
             DropIndex("dbo.HostsFileLogs", new[] { "ServerLogId" });
             DropIndex("dbo.WebSiteLogs", new[] { "ServerLogId" });
             DropIndex("dbo.ConfigFileLogs", new[] { "WebSiteLogId" });

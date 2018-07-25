@@ -18,10 +18,10 @@ namespace NewNodeChecker
         [Option(Default = false, HelpText = "Prints all messages to standard output.")]
         public bool Verbose { get; set; }
 
-        [Option('1', "server-one", Required = false, HelpText = "to secify the first server to be compared")]
+        [Option('x', "server-one", Required = false, HelpText = "to secify the first server to be compared")]
         public string ServerOne { get; set; }
 
-        [Option('2', "server-two", Required = false, HelpText = "to secify the second server to be compared")]
+        [Option('y', "server-two", Required = false, HelpText = "to secify the second server to be compared")]
         public string ServerTwo { get; set; }
     }
 }

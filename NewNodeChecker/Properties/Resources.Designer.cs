@@ -160,6 +160,15 @@ namespace NewNodeChecker.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to No logs have been found for {0}.
+        /// </summary>
+        internal static string NoLogsForServer {
+            get {
+                return ResourceManager.GetString("NoLogsForServer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to ServerOne or ServerTwo not specified!.
         /// </summary>
         internal static string ServerOneOrServerTwoNotSpecified {

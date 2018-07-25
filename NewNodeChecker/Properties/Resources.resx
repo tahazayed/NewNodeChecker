@@ -150,6 +150,9 @@
   <data name="LogWebsitesInfoIIS7" xml:space="preserve">
     <value>LogWebsitesInfo IIS7</value>
   </data>
+  <data name="NoLogsForServer" xml:space="preserve">
+    <value>No logs have been found for {0}</value>
+  </data>
   <data name="ServerOneOrServerTwoNotSpecified" xml:space="preserve">
     <value>ServerOne or ServerTwo not specified!</value>
   </data>

@@ -68,8 +68,8 @@ namespace NewNodeChecker
                 {
                     //Delete Old ServerLogs
                     List<ServerLog> lstServerLogs = (from s in db.ServerLogs
-                        where s.MachineName == CurrentMachineName
-                        select s).ToList();
+                                                     where s.MachineName == CurrentMachineName
+                                                     select s).ToList();
                     if (lstServerLogs.Count > 0)
                     {
                         db.ServerLogs.RemoveRange(lstServerLogs);
@@ -131,8 +131,8 @@ namespace NewNodeChecker
                 using (var db = new LogDbContext())
                 {
                     var oServerLog = (from s in db.ServerLogs
-                        where s.Id == _serverLogId
-                        select s).SingleOrDefault();
+                                      where s.Id == _serverLogId
+                                      select s).SingleOrDefault();
 
                     if (oServerLog != null)
                     {
@@ -145,18 +145,88 @@ namespace NewNodeChecker
             }
             else if (_mode == "c") //mode is compare servers
             {
-                string serverOne = opts.ServerOne;
-                string serverTwo = opts.ServerTwo;
+                string serverOneMachineName = opts.ServerOne;
+                string serverTwoMachineName = opts.ServerTwo;
 
-                if (string.IsNullOrEmpty(serverOne) || string.IsNullOrEmpty(serverTwo))
+                if (string.IsNullOrEmpty(serverOneMachineName) || string.IsNullOrEmpty(serverTwoMachineName))
                 {
                     Console.WriteLine(Resources.ServerOneOrServerTwoNotSpecified);
                     _returnValue = -2;
                     return;
                 }
-                Console.WriteLine(Resources.CompareNotImpelementedYet);
+                //Console.WriteLine(Resources.CompareNotImpelementedYet);
+
+                int serverOneId;
+                int serverTwoId;
+                using (var db = new LogDbContext())
+                {
+                    var serverOne = db.ServerLogs.SingleOrDefault(x => x.MachineName == serverOneMachineName);
+                    var serverTwo = db.ServerLogs.SingleOrDefault(x => x.MachineName == serverTwoMachineName);
+                    if (serverOne == default(ServerLog))
+                    {
+                        Console.WriteLine(Resources.NoLogsForServer, serverOneMachineName);
+                        _returnValue = -2;
+                        return;
+                    }
+                    if (serverTwo == default(ServerLog))
+                    {
+                        Console.WriteLine(Resources.NoLogsForServer, serverTwoMachineName);
+                        _returnValue = -2;
+                        return;
+                    }
+
+                    serverOneId = serverOne.Id;
+                    serverTwoId = serverTwo.Id;
+
+
+                }
+                var lstMissingAppsOnServerOne = GetMissingApps(serverTwoId, serverOneId, serverOneMachineName);
+                var lstMissingAppsOnServerTwo = GetMissingApps(serverOneId, serverTwoId, serverTwoMachineName);
+                foreach (var missingApp in lstMissingAppsOnServerOne)
+                {
+                    Console.WriteLine("{0} {1} {2}", missingApp.DisplayName, missingApp.DisplayVersion, missingApp.MachineName);
+                }
+                foreach (var missingApp in lstMissingAppsOnServerTwo)
+                {
+                    Console.WriteLine("{0} {1} {2}", missingApp.DisplayName, missingApp.DisplayVersion, missingApp.MachineName);
+                }
             }
         }
+
+        static List<MissingApp> GetMissingApps(int serverOneId, int serverTwoId, string machineName)
+        {
+            using (var db = new LogDbContext())
+            {
+                return (from a in db.InstalledAppsLogs
+                        join b in db.InstalledAppsLogs on new{a.DisplayName, a.DisplayVersion} equals new { b.DisplayName, b.DisplayVersion } into jointable
+                        from c in jointable.DefaultIfEmpty()
+                        where a.ServerLogId == serverOneId && c.ServerLogId == serverTwoId && c == null
+                        select new MissingApp
+                        {
+                            DisplayName = c.DisplayName,
+                            DisplayVersion = c.DisplayVersion,
+                            MachineName = machineName
+                        }
+                    ).Distinct().ToList();
+            }
+        }
+        static List<MismatchApp> GetMismatchApps(int serverOneId, int serverTwoId, string serverOneMachineName, string serverTwoMachineName)
+        {
+            using (var db = new LogDbContext())
+            {
+                return (from a in db.InstalledAppsLogs
+                        join b in db.InstalledAppsLogs on a.DisplayName equals  b.DisplayName
+                        where a.ServerLogId == serverOneId && b.ServerLogId == serverTwoId && a.DisplayVersion !=b.DisplayVersion
+                        select new MismatchApp
+                        {
+                            DisplayName = a.DisplayName,
+                            DisplayVersionOnServerOne = a.DisplayVersion,
+                            DisplayVersionOnServerTwo = b.DisplayVersion,
+                        }
+                    ).Distinct().ToList();
+            }
+        }
+
         private static void HandleParseError(IEnumerable<Error> errs)
         {
 
@@ -183,11 +253,11 @@ namespace NewNodeChecker
         private static void LogPortsAvailability()
         {
             Console.WriteLine(Resources.LogPortsAvailability);
-            
+
             int stepId = 0;
 
             CreateStepLog(Resources.LogPortsAvailability, ref stepId);
-            
+
             List<PortInfoDefination> portInfo = GetPortsInfo();
             foreach (PortInfoDefination port in portInfo)
             {
@@ -203,7 +273,7 @@ namespace NewNodeChecker
             int stepId = 0;
 
             CreateStepLog(Resources.LogWebsitesInfoIIS6, ref stepId);
-           
+
             try
             {
 #pragma warning disable SEC0114 // LDAP Injection
@@ -247,7 +317,7 @@ namespace NewNodeChecker
         static void LogIis7WebsitesInfo(int serverLogId)
         {
             Console.WriteLine(Resources.LogWebsitesInfoIIS7);
-           
+
             int stepId = 0;
 
             CreateStepLog(Resources.LogWebsitesInfoIIS7, ref stepId);
@@ -357,7 +427,7 @@ namespace NewNodeChecker
             int stepId = 0;
 
             CreateStepLog(Resources.LogHostsFileContent, ref stepId);
-           
+
             using (var db = new LogDbContext())
             {
                 var oServerLog = (from s in db.ServerLogs
@@ -393,7 +463,7 @@ namespace NewNodeChecker
             int stepId = 0;
 
             CreateStepLog(Resources.LogInstalledApps, ref stepId);
-            
+
             try
             {
 
@@ -408,12 +478,17 @@ namespace NewNodeChecker
                                 try
                                 {
                                     string displayName = String.Empty;
-                                    string displayVersion = String.Empty;
+                                    string displayVersion = "0";
                                     string installDate = String.Empty;
                                     string installSource = String.Empty;
                                     if (sk.GetValue(Constants.DisplayNamePropertyName) != null)
                                     {
                                         displayName = sk.GetValue(Constants.DisplayNamePropertyName).ToString();
+                                    }
+
+                                    if (string.IsNullOrEmpty(displayName))
+                                    {
+                                        continue;
                                     }
 
                                     if (sk.GetValue(Constants.DisplayVersionPropertyName) != null)
@@ -487,7 +562,7 @@ namespace NewNodeChecker
             int stepId = 0;
 
             CreateStepLog(Resources.LogSqlAccess, ref stepId);
-  
+
             using (var db = new LogDbContext())
             {
                 var lstSqlConnectionDefinations =
@@ -780,7 +855,7 @@ namespace NewNodeChecker
         static void LogUrlsHit()
         {
             Console.WriteLine(Resources.LogURLsHit);
-   
+
             int stepId = 0;
 
             CreateStepLog(Resources.LogURLsHit, ref stepId);

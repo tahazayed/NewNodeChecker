@@ -7,6 +7,7 @@ namespace NewNodeChecker.Models
     public class LogBase : CommonBusinessEntity
     {
         [Required]
+        [Index]
         public int ServerLogId { get; set; }
 
         [ForeignKey("ServerLogId")]

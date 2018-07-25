@@ -148,10 +148,9 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="Database\LogDbContext.cs" />
-    <Compile Include="Database\LogDbContext.Views.cs" />
-    <Compile Include="Migrations\201807191949535_initial.cs" />
-    <Compile Include="Migrations\201807191949535_initial.Designer.cs">
-      <DependentUpon>201807191949535_initial.cs</DependentUpon>
+    <Compile Include="Migrations\201807252118137_Initial.cs" />
+    <Compile Include="Migrations\201807252118137_Initial.Designer.cs">
+      <DependentUpon>201807252118137_Initial.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\CommonBusinessEntity.cs" />
@@ -166,8 +165,10 @@
     <Compile Include="Models\HostsFileLog.cs" />
     <Compile Include="Models\InstalledAppLog.cs" />
     <Compile Include="Models\LogBase.cs" />
+    <Compile Include="Models\MismatchApp.cs" />
     <Compile Include="Models\PortInfoDefination.cs" />
     <Compile Include="Models\PortResultLog.cs" />
+    <Compile Include="Models\MissingApp.cs" />
     <Compile Include="Models\RunStepLog.cs" />
     <Compile Include="Models\ServerLog.cs" />
     <Compile Include="Models\SqlConnectionDefination.cs" />
@@ -199,8 +200,8 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Migrations\201807191949535_initial.resx">
-      <DependentUpon>201807191949535_initial.cs</DependentUpon>
+    <EmbeddedResource Include="Migrations\201807252118137_Initial.resx">
+      <DependentUpon>201807252118137_Initial.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
